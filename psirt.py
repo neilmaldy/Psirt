@@ -21,7 +21,7 @@ for f in os.listdir('.'):
         with open (f, 'r') as fp:
             advisory.append(json.loads(fp.read()))
 
-advisory_table =  []
+advisory_table = {}
 for adv in advisory:
     for product in adv['kb_affected_list']:
         product_advisory = {}
@@ -46,9 +46,9 @@ for adv in advisory:
                             else:
                                 fixes.append('')
         product_advisory['kb_fixes'] = fixes
-        advisory_table.append(product_advisory)
+        advisory_table[product_advisory['ntap_advisory_id'] + ' ' + product] = product_advisory
 
-for product_advisory in advisory_table:
+for key, product_advisory in advisory_table.items():
     print(product_advisory['ntap_advisory_id'] + ':' + product_advisory['product'])
 
 
