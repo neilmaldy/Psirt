@@ -9,7 +9,7 @@ import datetime
 import pickle
 
 debug_it = 1
-output_file = 'advisories_' + datetime.date.today().strftime("%Y%W%w")
+output_file = 'advisories_' + datetime.date.today().strftime("%Y%U%w")
 
 
 def print_to_log(log_string):
@@ -98,7 +98,7 @@ with open(output_file + '.pickle', 'wb') as f:
 days = 1
 
 while days < 90:
-    day = (datetime.date.today() - datetime.timedelta(days=days)).strftime("%Y%W%w")
+    day = (datetime.date.today() - datetime.timedelta(days=days)).strftime("%Y%U%w")
     if not os.path.isfile('advisories_' + day + '.pickle'):
         days += 1
         print_to_log("Comparing to history from " + day)
