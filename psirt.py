@@ -29,6 +29,7 @@ class ProductAdvisory:
 
     def __init__(self, product_name, advisory):
         self.product = product_name
+        self.changes = set()
         self.ntap_advisory_id = advisory['ntap_advisory_id']
         self.title = advisory['kb_title']
         self.summary = advisory['kb_summary']
@@ -58,13 +59,15 @@ class ProductAdvisory:
                     try:
                         if v.date() != other.__getattribute__(k).date():
                             changes_list.append((k, v, other.__getattribute__(k)))
+                            self.changes.add(k)
                     except (AttributeError, ValueError):
                         if other.__getattribute__(k) != v:
                             changes_list.append((k, v, other.__getattribute__(k)))
+                            self.changes.add(k)
             except AttributeError:
                 if k not in ProductAdvisory.failed_attributes:
                     ProductAdvisory.failed_attributes.append(k)
-                    print_to_log("Problem comparing " + k + " to previous, possibly a new column added to the report")
+                    print_to_log("Problem comparing '" + k + "' to previous, possibly a new column added to the report")
 
         return changes_list
 
@@ -96,7 +99,7 @@ with open(output_file + '.pickle', 'wb') as f:
     pickle.dump(advisory_table, f)
 
 days = 1
-
+previous_advisories = None
 while days < 90:
     day = (datetime.date.today() - datetime.timedelta(days=days)).strftime("%Y%U%w")
     if not os.path.isfile('advisories_' + day + '.pickle'):
@@ -109,6 +112,15 @@ while days < 90:
         with open('advisories_' + day + '.pickle', 'rb') as f:
             previous_advisories = pickle.load(f)
         break
+
+if previous_advisories:
+    new_advisories = set(advisory_table.keys()) - set(previous_advisories.keys())
+    for key in new_advisories:
+        print('New advisory: ' + key)
+    for key, product_advisory  in advisory_table.items():
+        if key in previous_advisories:
+            for change in product_advisory.list_changes(previous_advisories[key]):
+                print(change)
 
 for key, product_advisory in advisory_table.items():
     print(product_advisory.ntap_advisory_id + ':' + product_advisory.product)
