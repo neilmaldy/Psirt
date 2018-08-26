@@ -153,6 +153,7 @@ for key in advisory_table:
             worksheet.write(row, col, advisory_table[key].__getattribute__(attribute_name))
 
         col += 1
+    row += 1
 
 workbook.close()
 print('Done.')
