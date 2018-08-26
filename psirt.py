@@ -7,6 +7,7 @@ import time
 import sys
 import datetime
 import pickle
+import xlsxwriter
 
 debug_it = 1
 output_file = 'advisories_' + datetime.date.today().strftime("%Y%U%w")
@@ -125,5 +126,24 @@ if previous_advisories:
 for key, product_advisory in advisory_table.items():
     print(product_advisory.ntap_advisory_id + ':' + product_advisory.product)
 
+column_list = [('Advisory ID', 'ntap_advisory_id'),
+               ('Product', 'product')]
 
+workbook = xlsxwriter.Workbook(output_file + '.xlsx')
+worksheet = workbook.add_worksheet()
+row = 0
+col = 0
+
+for column_heading, attribute_name in column_list:
+    worksheet.write(row, col, column_heading)
+    col += 1
+
+row = 1
+col = 0
+for key in advisory_table:
+    for column_heading, attribute_name in column_list:
+        worksheet.write(row, col, advisory_table[key].__getattribute__(attribute_name))
+        col += 1
+
+workbook.close()
 print('Done.')
