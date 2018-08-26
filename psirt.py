@@ -126,23 +126,32 @@ if previous_advisories:
 for key, product_advisory in advisory_table.items():
     print(product_advisory.ntap_advisory_id + ':' + product_advisory.product)
 
-column_list = [('Advisory ID', 'ntap_advisory_id'),
-               ('Product', 'product')]
+column_list = [('Advisory ID', 'ntap_advisory_id', 25),
+               ('Title', 'title', 40),
+               ('Product', 'product', 30)]
 
 workbook = xlsxwriter.Workbook(output_file + '.xlsx')
 worksheet = workbook.add_worksheet()
+fill_yellow_format = workbook.add_format()
+fill_yellow_format.set_bg_color('yellow')
+
 row = 0
 col = 0
 
-for column_heading, attribute_name in column_list:
+for column_heading, attribute_name, column_width in column_list:
     worksheet.write(row, col, column_heading)
+    worksheet.set_column(first_col=col, last_col=0, width=column_width)
     col += 1
 
 row = 1
 col = 0
 for key in advisory_table:
-    for column_heading, attribute_name in column_list:
-        worksheet.write(row, col, advisory_table[key].__getattribute__(attribute_name))
+    for column_heading, attribute_name, column_width in column_list:
+        if attribute_name in advisory_table[key].changes:
+            worksheet.write(row, col, advisory_table[key].__getattribute__(attribute_name), fill_yellow_format)
+        else:
+            worksheet.write(row, col, advisory_table[key].__getattribute__(attribute_name))
+
         col += 1
 
 workbook.close()
