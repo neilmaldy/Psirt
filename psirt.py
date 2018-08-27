@@ -16,13 +16,19 @@ output_dir = 'AdvisoryDir'
 if not os.path.isdir(output_dir):
     os.makedirs(output_dir)
 
+logs = []
 
 def print_to_log(log_string):
     """ Print to log file (stderr)
     Prints the logString to stderr, prepends date and time
     """
-    print(time.strftime("%H:%M:%S") + ": " + log_string, file=sys.stderr)
-    logging.info(time.strftime("%H:%M:%S") + ": " + log_string)
+    global logs
+
+    log = time.strftime("%H:%M:%S") + ": " + log_string
+    print(log, file=sys.stderr)
+    logging.info(log)
+    logs.append(log)
+
     if debug_it:
         with open("temp.log", mode='a', encoding='utf-8') as templog:
             print(time.strftime("%H:%M:%S") + ": " + log_string, file=templog)
@@ -152,11 +158,15 @@ column_list = [('Advisory ID', 'ntap_advisory_id', 20),
                ('Description', 'summary', 48),
                ('Fix Links', 'fixes', 62),
                ('First Fixed in Release', 'first_fixed', 13),
-               ('Notes', 'notes', 26)
+               ('Notes', 'notes', 26),
+               ('Version', 'version', 11),
+               ('Date', 'date', 11),
+               ('Comment', 'comment', 26),
+               ('Workarounds', 'workarounds', 26),
                ]
 
 workbook = xlsxwriter.Workbook(output_file + '.xlsx')
-worksheet = workbook.add_worksheet()
+worksheet = workbook.add_worksheet('Advisories')
 fill_yellow_format = workbook.add_format({'bg_color': 'yellow', 'text_wrap': True, 'border': 1, 'font_size': 8})
 wrap_format = workbook.add_format({'text_wrap': True})
 heading_format = workbook.add_format({'font_color': 'white', 'bg_color': 'blue', 'bold': True, 'border': 1, 'align': 'center', 'text_wrap': True})
@@ -192,6 +202,12 @@ for key in advisory_table:
 
 worksheet.autofilter(0, 0, len(advisory_table), len(column_list)-1)
 
+logsheet = workbook.add_worksheet('Logging')
+row = 0
+col = 0
+for log in logs:
+    logsheet.write_string(row, col, log)
+    row += 1
 
 workbook.close()
 
