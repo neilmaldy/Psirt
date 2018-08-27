@@ -41,6 +41,11 @@ class ProductAdvisory:
         self.summary = advisory['kb_summary']
         self.first_fixed = ''
         self.notes = ''
+        self.impact = advisory['kb_impact']
+        self.version = advisory['kb_rev_history'][-1]['version']
+        self.comment = advisory['kb_rev_history'][-1]['comment']
+        self.date = advisory['kb_rev_history'][-1]['date']
+        self.workarounds = advisory['kb_workarounds']
         self.cves_set = []
         for cve in advisory['kb_scoring_calc']:
             self.cves_set.append(cve + ' ' + advisory['kb_scoring_calc'][cve]['score']
