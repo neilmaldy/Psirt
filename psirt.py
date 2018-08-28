@@ -15,7 +15,7 @@ working_directory = None
 download_advisories = False
 
 while not working_directory:
-    with sg.FlexForm('NetApp Security Advisories Summary') as form:
+    with sg.FlexForm('NetApp Security Advisories Summary v1.0') as form:
         form_rows = [[sg.Text('Choose working directory(required) and advisory.history file(optional)', size=(50, 1))],
                      [sg.Text('(The advisory.history file is used to check for changes)', size=(50, 1))],
                      [sg.Text('Working directory:', size=(14, 1)), sg.InputText(), sg.FolderBrowse()],
@@ -25,16 +25,10 @@ while not working_directory:
 
         button, values = form.LayoutAndShow(form_rows)
 
-    print(button, values)
-
     if button is None or button == 'Cancel':
         sys.exit()
 
     working_directory, history_file, download_advisories = values
-
-    print(working_directory)
-    print(history_file)
-    print(download_advisories)
 
 os.chdir(working_directory)
 
@@ -58,7 +52,7 @@ def print_to_log(log_string):
     print(log, file=sys.stderr)
     logging.info(log)
     logs.append(log)
-    sg.EasyPrint(log, size=(80, 80))
+    sg.EasyPrint(log, size=(180, 50))
 
     if debug_it:
         with open("temp.log", mode='a', encoding='utf-8') as templog:
@@ -109,7 +103,7 @@ class ProductAdvisory:
 
     def list_changes(self, other):
         changes_list = []
-        attributes_to_ignore = ['ntap_advisory_id', 'raw_tb', 'cves_set', 'fixes_set', 'changes', 'product_name']
+        attributes_to_ignore = ['ntap_advisory_id', 'raw_tb', 'cves_set', 'fixes_set', 'changes', 'product_name', 'version', 'date', 'comment']
         for k, v in vars(self).items():
             try:
                 if k not in attributes_to_ignore and other.__getattribute__(k) != v:
@@ -117,6 +111,12 @@ class ProductAdvisory:
                         changes_list.append((k, v, other.__getattribute__(k)))
                         self.changes.add(k)
                         self.changes.add('ntap_advisory_id')
+                        if self.version != other.version:
+                            self.changes.add('version')
+                        if self.date != other.date:
+                            self.changes.add('date')
+                        if self.comment != other.comment:
+                            self.changes.add('comment')
             except AttributeError:
                 if k not in ProductAdvisory.failed_attributes:
                     ProductAdvisory.failed_attributes.append(k)
@@ -133,7 +133,7 @@ soup = BeautifulSoup(data, 'lxml')
 if download_advisories:
     for f in os.listdir(output_dir):
         if f.endswith('.json'):
-            os.remove(f)
+            os.remove(os.path.join(output_dir, f))
     for link in soup.find_all('a'):
         if link.get('href').endswith('.json'):
             if debug_it or True:
@@ -163,48 +163,53 @@ for adv in advisories:
     #    if product not in product_list:
     #        product_list.append(product)
 
-with open(output_file + '.pickle', 'wb') as f:
+with open(output_file + '.history', 'wb') as f:
     pickle.dump(advisory_table, f)
 
-with sg.FlexForm('NetApp Security Advisories Summary') as form:
+with sg.FlexForm('NetApp Security Advisories Summary v1.0') as form:
     form_rows = [[sg.Text('Choose products to include in report, select one item and then CTRL-A to select all', size=(80, 1))],
                  [sg.Listbox(sorted(product_list), select_mode='multiple', size=(80, 40))],
                  [sg.Submit(), sg.Cancel()]]
 
     button, values = form.LayoutAndShow(form_rows)
 
-print(button, values)
-
 if button is None or button == 'Cancel':
     sys.exit()
 
 product_list = values[0]
 
-days = 1
 previous_advisories = None
-while days < 90:
-    day = (datetime.date.today() - datetime.timedelta(days=days)).strftime("%Y%m%d")
-    if not os.path.isfile('advisories_' + day + '.pickle'):
-        days += 1
-        continue
-    else:
-        print_to_log("Comparing to history from " + day)
-        previous_advisories = {}
-        with open('advisories_' + day + '.pickle', 'rb') as f:
-            previous_advisories = pickle.load(f)
-        break
+if history_file and history_file is not 'None' and os.path.isfile(history_file):
+    with open(history_file, 'rb') as f:
+        previous_advisories = pickle.load(f)
+
+# days = 1
+# while days < 90:
+#     day = (datetime.date.today() - datetime.timedelta(days=days)).strftime("%Y%m%d")
+#     if not os.path.isfile('advisories_' + day + '.history'):
+#         days += 1
+#         continue
+#     else:
+#         print_to_log("Comparing to history from " + day)
+#         previous_advisories = {}
+#         with open('advisories_' + day + '.history', 'rb') as f:
+#             previous_advisories = history.load(f)
+#         break
 
 if previous_advisories:
     new_advisories = set(advisory_table.keys()) - set(previous_advisories.keys())
     for key in new_advisories:
-        print_to_log('New advisory: ' + key)
-        advisory_table[key].changes.add('ntap_advisory_id')
-        advisory_table[key].changes.add('product')
+        if advisory_table[key].product in product_list:
+            print_to_log('New advisory: ' + key)
+            advisory_table[key].changes.add('ntap_advisory_id')
+            advisory_table[key].changes.add('product')
     for key, product_advisory  in advisory_table.items():
-        if key in previous_advisories:
-            for change in product_advisory.list_changes(previous_advisories[key]):
-                if debug_it or True:
-                    print_to_log(key + ' Changes: ' + str(change))
+        if advisory_table[key].product in product_list:
+            if key in previous_advisories:
+                for change in product_advisory.list_changes(previous_advisories[key]):
+                    if debug_it or True:
+                        attribute, new_value, old_value = change
+                        print_to_log(key + ' attribute ' + attribute + ' Changed from ' + str(old_value) + ' to ' + str(new_value))
 
 column_list = [('Advisory ID', 'ntap_advisory_id', 20),
                ('Title', 'title', 50),
@@ -258,7 +263,7 @@ for key in advisory_table:
         row += 1
     col = 0
 
-worksheet.autofilter(0, 0, len(advisory_table), len(column_list)-1)
+worksheet.autofilter(0, 0, row-1, len(column_list)-1)
 
 logsheet = workbook.add_worksheet('Logging')
 row = 0
@@ -269,7 +274,7 @@ for log in logs:
 
 workbook.close()
 
-with sg.FlexForm('NetApp Security Advisories Summary') as form:
+with sg.FlexForm('NetApp Security Advisories Summary v1.0') as form:
     form_rows = [[sg.Text('NetApp Security Advisories Summary saved as ' + output_file + time_stamp + '.xlsx', size=(60, 1))],
                  [sg.Text('Open now?', size=(50, 1))],
                  [sg.Ok(), sg.Cancel()]]
